@@ -3,7 +3,10 @@ super_admin_password="a_secure_password"
 users = [
   { name = "app_x_user", password = "app_x_user_password" },
   { name = "app_x_dba", password = "secure_password_here" },
+  { name = "etl_dba", password = "secure_password_here" },
   { name = "example_core_reader", password = "secure_password_here" },
   { name = "example_core_writer", password = "secure_password_here" },
-  { name = "example_core_dba", password = "secure_password_here" }
+  { name = "example_core_dba", password = "secure_password_here" },
+  { name = "analyst_x", password = "secure_password_here" },
+  { name = "analyst_y", password = "secure_password_here" }
 ]

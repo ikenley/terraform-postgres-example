@@ -7,6 +7,10 @@ variable "tags" {
   default     = {}
 }
 
+variable "name" {
+  description = "The name of the database"
+}
+
 variable "super_admin_user" {
   description = "Global postgres server admin username. STORE SECURELY. https://learn.hashicorp.com/tutorials/terraform/sensitive-variables"
   sensitive   = true

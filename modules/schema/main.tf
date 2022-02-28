@@ -22,9 +22,17 @@ resource "postgresql_schema" "this" {
 # Create standard roles reader, writer, and dba
 #
 
+locals {
+  has_readers = length(var.read_users) == 0 ? 0 : 1
+  has_writers = length(var.write_users) == 0 ? 0 : 1
+  has_dbas    = length(var.dba_users) == 0 ? 0 : 1
+}
+
 # read-only access
 resource "postgresql_role" "reader" {
-  name = "${var.name}_reader"
+  count = local.has_readers
+
+  name = "${var.database}_${var.name}_reader"
 
   lifecycle {
     ignore_changes = [
@@ -35,7 +43,9 @@ resource "postgresql_role" "reader" {
 
 # read-write access
 resource "postgresql_role" "writer" {
-  name = "${var.name}_writer"
+  count = local.has_writers
+
+  name = "${var.database}_${var.name}_writer"
 
   lifecycle {
     ignore_changes = [
@@ -46,7 +56,9 @@ resource "postgresql_role" "writer" {
 
 # DBA (DataBase Admin) access. Schema edits but not role changes
 resource "postgresql_role" "dba" {
-  name = "${var.name}_dba"
+  count = local.has_dbas
+
+  name = "${var.database}_${var.name}_dba"
 
   lifecycle {
     ignore_changes = [
@@ -54,17 +66,6 @@ resource "postgresql_role" "dba" {
     ]
   }
 }
-
-# Make grants transitive. e.g. dba inherits writer which inherits reader
-# resource "postgresql_grant_role" "writer_inherits_reader" {
-#   role       = postgresql_role.writer.name
-#   grant_role = postgresql_role.reader.name
-# }
-
-# resource "postgresql_grant_role" "dba_inherits_writer" {
-#   role       = postgresql_role.dba.name
-#   grant_role = postgresql_role.writer.name
-# }
 
 #
 # reader permissions
@@ -75,27 +76,33 @@ resource "postgresql_grant_role" "reader" {
   count = length(var.read_users)
 
   role       = var.read_users[count.index]
-  grant_role = postgresql_role.reader.name
+  grant_role = postgresql_role.reader[0].name
 }
 
 resource "postgresql_grant" "reader_schema_usage" {
+  count = local.has_readers
+
   database    = var.database
-  role        = postgresql_role.reader.name
+  role        = postgresql_role.reader[0].name
   schema      = var.name
   object_type = "schema"
   privileges  = ["USAGE"]
 }
 
 resource "postgresql_grant" "reader_schema_permissions" {
+  count = local.has_readers
+
   database    = var.database
-  role        = postgresql_role.reader.name
+  role        = postgresql_role.reader[0].name
   schema      = var.name
   object_type = "table"
   privileges  = ["SELECT"]
 }
 
 resource "postgresql_default_privileges" "reader_superadmin" {
-  role     = postgresql_role.reader.name
+  count = local.has_readers
+
+  role     = postgresql_role.reader[0].name
   database = var.database
   schema   = var.name
 
@@ -105,11 +112,13 @@ resource "postgresql_default_privileges" "reader_superadmin" {
 }
 
 resource "postgresql_default_privileges" "reader_dba" {
-  role     = postgresql_role.reader.name
+  count = local.has_readers
+
+  role     = postgresql_role.reader[0].name
   database = var.database
   schema   = var.name
 
-  owner       = postgresql_role.dba.name
+  owner       = postgresql_role.dba[0].name
   object_type = "table"
   privileges  = ["SELECT"]
 }
@@ -123,27 +132,33 @@ resource "postgresql_grant_role" "writer" {
   count = length(var.write_users)
 
   role       = var.write_users[count.index]
-  grant_role = postgresql_role.writer.name
+  grant_role = postgresql_role.writer[0].name
 }
 
 resource "postgresql_grant" "writer_schema_usage" {
+  count = local.has_writers
+
   database    = var.database
-  role        = postgresql_role.writer.name
+  role        = postgresql_role.writer[0].name
   schema      = var.name
   object_type = "schema"
   privileges  = ["USAGE"]
 }
 
 resource "postgresql_grant" "writer_schema_permissions" {
+  count = local.has_writers
+
   database    = var.database
-  role        = postgresql_role.writer.name
+  role        = postgresql_role.writer[0].name
   schema      = var.name
   object_type = "table"
   privileges  = ["INSERT", "SELECT", "UPDATE", "DELETE"]
 }
 
 resource "postgresql_default_privileges" "writer_super_admin" {
-  role     = postgresql_role.writer.name
+  count = local.has_writers
+
+  role     = postgresql_role.writer[0].name
   database = var.database
   schema   = var.name
 
@@ -153,11 +168,13 @@ resource "postgresql_default_privileges" "writer_super_admin" {
 }
 
 resource "postgresql_default_privileges" "writer_dba" {
-  role     = postgresql_role.writer.name
+  count = local.has_writers
+
+  role     = postgresql_role.writer[0].name
   database = var.database
   schema   = var.name
 
-  owner       = postgresql_role.dba.name
+  owner       = postgresql_role.dba[0].name
   object_type = "table"
   privileges  = ["INSERT", "SELECT", "UPDATE", "DELETE"]
 }
@@ -171,27 +188,33 @@ resource "postgresql_grant_role" "dba" {
   count = length(var.dba_users)
 
   role       = var.dba_users[count.index]
-  grant_role = postgresql_role.dba.name
+  grant_role = postgresql_role.dba[0].name
 }
 
 resource "postgresql_grant" "dba_schema_permissions" {
+  count = local.has_dbas
+
   database    = var.database
-  role        = postgresql_role.dba.name
+  role        = postgresql_role.dba[0].name
   schema      = var.name
   object_type = "schema"
   privileges  = ["USAGE", "CREATE"]
 }
 
 resource "postgresql_grant" "dba_table_permissions" {
+  count = local.has_dbas
+
   database    = var.database
-  role        = postgresql_role.dba.name
+  role        = postgresql_role.dba[0].name
   schema      = var.name
   object_type = "table"
   privileges  = ["INSERT", "SELECT", "UPDATE", "DELETE", "TRUNCATE"]
 }
 
 resource "postgresql_default_privileges" "dba_table" {
-  role     = postgresql_role.dba.name
+  count = local.has_dbas
+
+  role     = postgresql_role.dba[0].name
   database = var.database
   schema   = var.name
 
@@ -201,15 +224,19 @@ resource "postgresql_default_privileges" "dba_table" {
 }
 
 resource "postgresql_grant" "dba_sequence_permissions" {
+  count = local.has_dbas
+
   database    = var.database
-  role        = postgresql_role.dba.name
+  role        = postgresql_role.dba[0].name
   schema      = var.name
   object_type = "sequence"
   privileges  = ["USAGE", "SELECT", "UPDATE"]
 }
 
 resource "postgresql_default_privileges" "dba_sequence" {
-  role     = postgresql_role.dba.name
+  count = local.has_dbas
+
+  role     = postgresql_role.dba[0].name
   database = var.database
   schema   = var.name
 

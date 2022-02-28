@@ -12,34 +12,17 @@ terraform {
 }
 
 resource "postgresql_database" "core" {
-  name = "core"
-}
-
-resource "postgresql_role" "users" {
-  count = length(var.users)
-
-  name     = var.users[count.index].name
-  login    = true
-  password = var.users[count.index].password
-
-  lifecycle {
-    ignore_changes = [
-      roles
-    ]
-  }
+  name = var.name
 }
 
 resource "postgresql_grant" "connect" {
-  count = length(postgresql_role.users)
+  count = length(var.users)
 
   database    = postgresql_database.core.name
-  role        = postgresql_role.users[count.index].name
+  role        = var.users[count.index].name
   object_type = "database"
   privileges  = ["CONNECT"]
 
-  depends_on = [
-    postgresql_role.users
-  ]
 }
 
 module "schemas" {
