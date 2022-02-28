@@ -142,7 +142,7 @@ module "analytics_database" {
     {
       name        = "main"
       read_users  = ["example_core_reader"]
-      write_users = ["app_x_user", "example_core_writer"]
+      write_users = []
       dba_users   = local.analyst_users
     }
   ]
